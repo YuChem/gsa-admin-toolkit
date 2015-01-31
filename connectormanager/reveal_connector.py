@@ -19,7 +19,7 @@ class RevealConnector(connector.TimedConnector):
 
   CONNECTOR_TYPE = 'reveal-connector'
   CONNECTOR_CONFIG = {'delay': { 'type': 'text', 'label': 'Recrawl delay'}}
-
+  RECORD_PER_FEED = 10  
 
   def init(self):
     #hardcoded interval for the first run
@@ -47,39 +47,41 @@ class RevealConnector(connector.TimedConnector):
 
     n = 0
 
+    feed = connector.Feed('incremental')
+
     for fname in json_files:
-      feed_type = 'incremental'
-      feed = connector.Feed(feed_type)
+      with open(fname, 'r') as f:
+        pages = json.loads(f.read())
+        self.logger().info("%s: has %d records" % (fname, len(pages)))
 
-      n += self.make_feed(feed, fname)
+        per_feed_counter = 0
 
-      self.pushFeed(feed)
+        #slice record array into smaller slis
+        for page in pages:
 
-      feed.clear()
+          url,html = (page['url'], page.get('result',None))
 
-    self.logger().info('Congrats, work done! %d pages have been posted to GSA.' % n)
+          if(html):
+            url_hash = hashlib.md5(url).hexdigest() 
+            feed.addRecord(url="http://reveal/recommendation/%s" % url_hash, 
+                           displayurl=escape(url), 
+                           action='add', 
+                           mimetype='text/html', 
+                           metadata={'content_source': 'Reveal',
+                                     'rp_elastic_id': url_hash},
+                           content=html)
+            
+            per_feed_counter += 1
+            if per_feed_counter < self.RECORD_PER_FEED:
+              continue
 
-  #compose a feed from all the URLs in this space
-  def make_feed(self, feed, fname):
+          self.pushFeed(feed)
+          feed.clear()
+          n += per_feed_counter
+          per_feed_counter = 0
+        else:
+          self.pushFeed(feed)
+          feed.clear()
+          n += per_feed_counter
 
-    i = 0
-
-    with open(fname, 'r') as f:
-      j = json.loads(f.read())
-      self.logger().debug("%s: %d records" % (fname, len(j)))
-
-      for rec in j:
-        url,html = (rec['url'], rec.get('result',None))
-
-        if(html):
-          url_hash = hashlib.md5(url).hexdigest() 
-          feed.addRecord(url="http://reveal/recommendation/%s" % url_hash, 
-                         displayurl=escape(url), 
-                         action='add', 
-                         mimetype='text/html', 
-                         metadata={'content_source': 'Reveal',
-                                   'rp_elastic_id': url_hash},
-                         content=html)
-          i += 1
-
-    return i
+      self.logger().info('Congrats, work done! %d pages have been posted to GSA.' % n)

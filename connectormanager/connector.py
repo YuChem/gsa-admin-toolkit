@@ -643,4 +643,5 @@ class Feed(object):
 
   def clear(self):
     """Clears the list of records."""
+    self._records = None
     self._records = []
