@@ -80,3 +80,55 @@ class ConfluenceConnector(connector.TimedConnector):
       i += 1
 
     return i
+
+#================== unit test ===================
+if __name__ == '__main__':
+  import logging
+
+  debug = True
+
+  config = '''
+<ConnectorConfig>
+  <ConnectorName>confluence</ConnectorName>
+  <ConnectorType>confluence-connector</ConnectorType>
+  <Lang>en</Lang>
+  <GlobalNamespace>Default</GlobalNamespace>
+  <LocalNamespace>Default_confluence</LocalNamespace>
+  <Update>false</Update>
+  <Param name="confluence_host" value="confluence.corp.radialpoint.com"/>
+  <Param name="confluence_pass" value="gsaradialpoint"/>
+  <Param name="confluence_user" value="viewer"/>
+  <Param name="delay" value="43200"/>
+  <ConnectorConfigXml><![CDATA[null]]></ConnectorConfigXml>
+</ConnectorConfig>
+'''
+  # ------ moking up the connector object -------
+  logger = logging.getLogger('test')
+  ch = logging.StreamHandler()
+  formatter = logging.Formatter(
+      '[%(asctime)s %(name)s %(levelname)s] %(message)s',
+      '%Y/%m/%d:%H:%M:%S')
+  ch.setFormatter(formatter)
+  logger.addHandler(ch)
+  if debug:
+    logger.setLevel(logging.DEBUG)
+    ch.setLevel(logging.DEBUG)
+  else:
+    logger.setLevel(logging.INFO)
+
+  class ManagerMock:
+    def __init__(self):
+      self.gsa = 'localhost'
+      self.log = logger
+      self.debug_flag = debug
+    
+    def logger(self,obj):
+      return self.log
+
+  r = ConfluenceConnector(ManagerMock(),'conf-test',config,None,None)
+
+  def pushFeed(feed):
+    logger.debug(feed.toXML())
+
+  r.pushFeed = pushFeed
+  r.run()

@@ -85,3 +85,20 @@ class RevealConnector(connector.TimedConnector):
           n += per_feed_counter
 
       self.logger().info('Congrats, work done! %d pages have been posted to GSA.' % n)
+
+#================== unit test ===================
+if __name__ == '__main__':
+  config = '''
+<ConnectorConfig>
+  <ConnectorName>reveal_crawl</ConnectorName>
+  <ConnectorType>reveal-connector</ConnectorType>
+  <Lang>en</Lang>
+  <GlobalNamespace>Default</GlobalNamespace>
+  <LocalNamespace>Default_reveal_crawl</LocalNamespace>
+  <Update>false</Update>
+  <Param name="delay" value="43200"/>
+  <ConnectorConfigXml><![CDATA[null]]></ConnectorConfigXml>
+</ConnectorConfig>
+'''
+  r = RevealConnector(None,None,config,None,None)
+
