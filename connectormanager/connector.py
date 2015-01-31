@@ -21,7 +21,7 @@
 
 __author__ = 'jonathanho@google.com (Jonathan Ho)'
 
-import base64
+import base64, re
 import threading
 import urllib2
 import xml.dom.minidom
@@ -369,8 +369,8 @@ class Connector(object):
     """
 
     self.logger().debug('Posting Aggregated Feed to : %s' % self._name)
-    xmldata = ('<?xml version="1.0" encoding="UTF-8" ?>'
-               '<!DOCTYPE gsafeed PUBLIC "-//Google//DTD GSA Feeds//EN" "gsafeed.dtd">'
+    xmldata = ('<?xml version="1.0" encoding="UTF8" ?>'
+               '<!DOCTYPE gsafeed PUBLIC "-//Google//DTD GSA Feeds//EN" "">'
                '<gsafeed>'
                '<header>'
                '<datasource>%s</datasource>'
@@ -412,11 +412,11 @@ class Connector(object):
     L.append(feed_type)
 
     L.append('--' + BOUNDARY)
-    L.append('Content-Disposition: form-data; name="data"')
-    L.append('Content-Type: application/xml')
+    L.append('Content-Disposition: form-data; name="data"; filename="feed.xml"')
+    L.append('Content-Type: text/xml')
     L.append('')
 
-    L.append(xmldata)
+    L.append(xmldata.encode('utf-8'))
     L.append('')
     L.append('--' + BOUNDARY + '--')
     L.append('')
@@ -574,9 +574,16 @@ class Feed(object):
     # generate content tag
     contentstr = ''
     if content:
-      contentstr = ('<content encoding="base64binary">'
-                    '%s'
-                    '</content>') % base64.encodestring(content)
+      mimetype = attrs['mimetype']
+      if mimetype and mimetype.startswith('text/'):
+        #escape CDATA sequence
+        content = re.sub("]]>","]]]]><![CDATA[>",content)
+        contentstr = "<content><![CDATA[%s]]></content>" % content
+      else:
+        contentstr = ('<content encoding="base64binary">'
+                      '%s'
+                      '</content>') % base64.encodestring(content)
+
     return '<record %s>%s%s</record>' % (attrstr, metastr, contentstr)
 
   def addRecord(self, **kwargs):
@@ -612,8 +619,8 @@ class Feed(object):
       del kwargs['content']
     metadata = None
     if 'metadata' in kwargs:
-      metadata = kwargs['metdata']
-      del kwargs['metdata']
+      metadata = kwargs['metadata']
+      del kwargs['metadata']
     self._records.append((kwargs, metadata, content))
 
   def toXML(self):
